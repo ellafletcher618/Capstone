@@ -1,0 +1,242 @@
+library("tidymodels")
+library("tidyverse")
+library("stringr")
+
+# Dataset URL
+dataset_url <- "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-RP0321EN-SkillsNetwork/labs/datasets/seoul_bike_sharing_converted_normalized.csv"
+bike_sharing_df <- read_csv(dataset_url)
+spec(bike_sharing_df)
+
+bike_sharing_df <- bike_sharing_df %>% 
+                   select(-DATE, -FUNCTIONING_DAY)
+
+lm_spec <- linear_reg() %>%
+  set_engine("lm") %>% 
+  set_mode("regression")
+
+set.seed(1234)
+data_split <- initial_split(bike_sharing_df, prop = 4/5)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+
+# Fit a linear model with higher order polynomial on some important variables 
+#HINT: Use ploy function to build polynomial terms, lm_poly <- RENTED_BIKE_COUNT ~ poly(TEMPERATURE, 6) + poly(HUMIDITY, 4) .....
+lm_poly <- lm(RENTED_BIKE_COUNT ~ . + poly(TEMPERATURE, 8) + poly(HUMIDITY, 8) + poly(RAINFALL, 8), data = train_data)
+# Print model summary
+summary(lm_poly$fit)
+  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ -919.1   281.6   715.6   732.2  1143.7  3115.5 
+
+# Use predict() function to generate test results for `lm_poly`
+lm_poly_train_results <- test_data %>% 
+select(RENTED_BIKE_COUNT) %>% 
+mutate(PREDICTED = predict(lm_poly, test_data)) %>%
+rename(TRUTH = "RENTED_BIKE_COUNT")
+head(lm_poly_train_results)
+TRUTH	PREDICTED
+<dbl>	<dbl>
+173	-115.38169
+78	-242.59322
+181	-60.20539
+490	148.16909
+449	120.48362
+463	268.85816
+
+lm_poly_train_results[lm_poly_train_results<0] <- 0
+head(lm_poly_train_results)
+TRUTH	PREDICTED
+<dbl>	<dbl>
+173	0.0000
+78	0.0000
+181	0.0000
+490	148.1691
+449	120.4836
+463	268.8582
+
+# Calculate R-squared and RMSE from the test results
+rsq_lm_poly <- rsq(lm_poly_train_results,
+  TRUTH,
+  PREDICTED)
+
+rmse_lm_poly <- rmse(lm_poly_train_results,
+  TRUTH,
+  PREDICTED)
+
+rsq_lm_poly
+.metric	.estimator	.estimate
+<chr>	<chr>	<dbl>
+rsq	standard	0.745555
+
+rmse_lm_poly
+.metric	.estimator	.estimate
+<chr>	<chr>	<dbl>
+rmse	standard	320.4587
+
+# Add interaction terms to the poly regression built in previous step
+# HINT: You could use `*` operator to create interaction terms such as HUMIDITY*TEMPERATURE and make the formula look like:
+# RENTED_BIKE_COUNT ~ RAINFALL*HUMIDITY ...
+lm_poly2 <- lm(RENTED_BIKE_COUNT ~. + poly(TEMPERATURE, 8) + poly(HUMIDITY, 8) + poly(RAINFALL, 8), RAINFALL * HUMIDITY + HUMIDITY * TEMPERATURE + AUTUMN * `18`, data = train_data)
+
+# Print model summary
+summary(lm_poly2)
+
+Call:
+lm(formula = RENTED_BIKE_COUNT ~ . + poly(TEMPERATURE, 8) + poly(HUMIDITY, 
+    8) + poly(RAINFALL, 8), data = train_data, subset = RAINFALL * 
+    HUMIDITY + HUMIDITY * TEMPERATURE + AUTUMN * `18`)
+
+Residuals:
+       Min         1Q     Median         3Q        Max 
+-1.190e-11  1.352e-13  1.352e-13  1.352e-13  1.371e-13 
+
+Coefficients: (61 not defined because of singularities)
+                        Estimate Std. Error    t value Pr(>|t|)    
+(Intercept)           -1.846e+03  5.387e-11 -3.427e+13   <2e-16 ***
+TEMPERATURE            9.533e+03  2.446e-10  3.897e+13   <2e-16 ***
+HUMIDITY                      NA         NA         NA       NA    
+WIND_SPEED                    NA         NA         NA       NA    
+VISIBILITY                    NA         NA         NA       NA    
+DEW_POINT_TEMPERATURE         NA         NA         NA       NA    
+SOLAR_RADIATION               NA         NA         NA       NA    
+RAINFALL                      NA         NA         NA       NA    
+SNOWFALL                      NA         NA         NA       NA    
+`0`                           NA         NA         NA       NA    
+`1`                           NA         NA         NA       NA    
+`10`                          NA         NA         NA       NA    
+`11`                          NA         NA         NA       NA    
+`12`                          NA         NA         NA       NA    
+`13`                          NA         NA         NA       NA    
+`14`                          NA         NA         NA       NA    
+`15`                          NA         NA         NA       NA    
+`16`                          NA         NA         NA       NA    
+`17`                          NA         NA         NA       NA    
+`18`                          NA         NA         NA       NA    
+`19`                          NA         NA         NA       NA    
+`2`                           NA         NA         NA       NA    
+`20`                          NA         NA         NA       NA    
+`21`                          NA         NA         NA       NA    
+`22`                          NA         NA         NA       NA    
+`23`                          NA         NA         NA       NA    
+`3`                           NA         NA         NA       NA    
+`4`                           NA         NA         NA       NA    
+`5`                           NA         NA         NA       NA    
+`6`                           NA         NA         NA       NA    
+`7`                           NA         NA         NA       NA    
+`8`                           NA         NA         NA       NA    
+`9`                           NA         NA         NA       NA    
+AUTUMN                        NA         NA         NA       NA    
+SPRING                        NA         NA         NA       NA    
+SUMMER                        NA         NA         NA       NA    
+WINTER                        NA         NA         NA       NA    
+HOLIDAY                       NA         NA         NA       NA    
+NO_HOLIDAY                    NA         NA         NA       NA    
+poly(TEMPERATURE, 8)1         NA         NA         NA       NA    
+poly(TEMPERATURE, 8)2         NA         NA         NA       NA    
+poly(TEMPERATURE, 8)3         NA         NA         NA       NA    
+poly(TEMPERATURE, 8)4         NA         NA         NA       NA    
+poly(TEMPERATURE, 8)5         NA         NA         NA       NA    
+poly(TEMPERATURE, 8)6         NA         NA         NA       NA    
+poly(TEMPERATURE, 8)7         NA         NA         NA       NA    
+poly(TEMPERATURE, 8)8         NA         NA         NA       NA    
+poly(HUMIDITY, 8)1            NA         NA         NA       NA    
+poly(HUMIDITY, 8)2            NA         NA         NA       NA    
+poly(HUMIDITY, 8)3            NA         NA         NA       NA    
+poly(HUMIDITY, 8)4            NA         NA         NA       NA    
+poly(HUMIDITY, 8)5            NA         NA         NA       NA    
+poly(HUMIDITY, 8)6            NA         NA         NA       NA    
+poly(HUMIDITY, 8)7            NA         NA         NA       NA    
+poly(HUMIDITY, 8)8            NA         NA         NA       NA    
+poly(RAINFALL, 8)1            NA         NA         NA       NA    
+poly(RAINFALL, 8)2            NA         NA         NA       NA    
+poly(RAINFALL, 8)3            NA         NA         NA       NA    
+poly(RAINFALL, 8)4            NA         NA         NA       NA    
+poly(RAINFALL, 8)5            NA         NA         NA       NA    
+poly(RAINFALL, 8)6            NA         NA         NA       NA    
+poly(RAINFALL, 8)7            NA         NA         NA       NA    
+poly(RAINFALL, 8)8            NA         NA         NA       NA    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 1.276e-12 on 88 degrees of freedom
+Multiple R-squared:      1,	Adjusted R-squared:      1 
+F-statistic: 1.519e+27 on 1 and 88 DF,  p-value: < 2.2e-16
+
+lm_poly2_train_results <- test_data %>% 
+select(RENTED_BIKE_COUNT) %>% 
+mutate(PREDICTED = predict(lm_poly2, test_data)) %>%
+rename(TRUTH = "RENTED_BIKE_COUNT")
+
+head(lm_poly2_train_results)
+
+Warning message in predict.lm(lm_poly2, test_data):
+“prediction from a rank-deficient fit may be misleading”
+
+TRUTH	PREDICTED
+<dbl>	<dbl>
+173	120.66667
+78	120.66667
+181	20.66667
+490	37.33333
+449	1404.00000
+463	1470.66667
+
+# Calculate R-squared and RMSE for the new model to see if performance has improved
+rsq_lm_poly2 <- rsq(lm_poly2_train_results, TRUTH, PREDICTED)
+​
+rmse_lm_poly2 <- rmse(lm_poly2_train_results, TRUTH, PREDICTED)
+​
+rsq_lm_poly2
+.metric	.estimator	.estimate
+<chr>	<chr>	<dbl>
+rsq	standard	0.3340616
+
+rmse_lm_poly2
+.metric	.estimator	.estimate
+<chr>	<chr>	<dbl>
+rmse	standard	3047.447
+
+_TODO:_ Define a linear regression model specification `glmnet_spec` using `glmnet` engine
+
+# HINT: Use linear_reg() function with two parameters: penalty and mixture
+# - penalty controls the intensity of model regularization
+# - mixture controls the tradeoff between L1 and L2 regularizations
+# You could manually try different parameter combinations or use grid search to find optimal combinations
+
+lm_glmnet_recipe <- recipe(RENTED_BIKE_COUNT ~ . + poly(TEMPERATURE, 8) + poly(HUMIDITY, 8) + poly(RAINFALL, 8), data = train_data)
+
+# define model
+tune_spec <- linear_reg(penalty = tune(), mixture = 1) %>%
+  set_engine("glmnet")
+
+# Grid workflow
+wf <- workflow() %>%
+  add_recipe(lm_glmnet_recipe)
+
+# Cross-validation
+folds <- vfold_cv(train_data)
+
+# Define tuning values
+lambda_tune <- grid_regular(
+  levels = 50,
+  penalty(range = c(-3, 0.3)))
+
+# define grid search
+grid <- tune_grid(
+  wf %>% add_model(tune_spec),
+  resamples = folds,
+  grid = lambda_tune)
+          
+show_best(grid, metric = "rmse")
+
+Error: No in-line functions should be used here; use steps to define baking actions
+Traceback:
+
+1. recipe(RENTED_BIKE_COUNT ~ . + poly(TEMPERATURE, 8) + poly(HUMIDITY, 
+ .     8) + poly(RAINFALL, 8), data = train_data)
+2. recipe.formula(RENTED_BIKE_COUNT ~ . + poly(TEMPERATURE, 8) + 
+ .     poly(HUMIDITY, 8) + poly(RAINFALL, 8), data = train_data)
+3. form2args(formula, data, ...)
+4. element_check(formula, allowed = NULL)
+5. rlang::abort(paste0("No in-line functions should be used here; use steps to define ", 
+ .     "baking actions"))
+6. signal_abort(cnd)
